@@ -1,16 +1,30 @@
-# Pest v4 Deprecation Warning Issue
+# Pest v4 Browser Testing Deprecation Issue
 
-This repository demonstrates a deprecation warning that occurs when using Pest v4 with the browser plugin.
+This repository demonstrates a deprecation warning that occurs when using **Pest v4 browser testing** with the `visit()` function.
+
+## What I Want to Fix
+
+**Pest browser testing** - specifically eliminating deprecation warnings when using `visit()` and other browser testing functions in Pest v4.
+
+## What Seems Broken
+
+**The `amphp/websocket-client` package** - it uses a deprecated League URI method that triggers warnings during browser tests.
 
 ## Problem Description
 
-When running browser tests with Pest v4, you'll encounter the following deprecation warning:
+When running Pest browser tests that use `visit()`, you get this deprecation warning:
 
 ```
 Method League\Uri\Http::createFromString() is deprecated since league/uri:7.0.0, use League\Uri\Http::new() instead
 ```
 
-This warning appears every time you use the `visit()` function in your browser tests.
+**Example test that triggers the warning:**
+```php
+test('browser', function () {
+    visit('https://www.google.com')
+        ->assertSee('Google');
+});
+```
 
 ## Environment
 
@@ -173,7 +187,82 @@ As noted in the AMPHP WebSocket Client code, there's a `@psalm-suppress Deprecat
 - **Development**: Deprecation warnings clutter test output
 - **Future**: The deprecated method may be removed in future versions of league/uri
 
-## Potential Solutions
+## What's Actually Happening
 
-1. **Wait for upstream fix**: AMPHP WebSocket Client needs to update their code
-3. **Version pinning**: Pin league/uri to 6.x (not recommended for new projects)
+The issue **is NOT in Pest itself** - Pest browser testing works fine. The problem is in a dependency:
+
+**Dependency Chain:**
+```
+Pest v4 Browser Plugin
+  └── amphp/websocket-client v2.0.1  ← THE ISSUE IS HERE
+      └── Uses deprecated League\Uri\Http::createFromString()
+```
+
+When Pest browser tests run, they use websockets internally, which triggers the deprecated method.
+
+## Current Status: Fix Available But Not Merged
+
+### There's an Open Pull Request
+- **PR #56**: [Fix League\Uri\Http deprecation warning](https://github.com/amphp/websocket-client/pull/56)
+- **Status**: Open since April 10, 2025 ⏳
+- **Author**: @foxycode  
+- **The Fix**: Changes `Uri\Http::createFromString()` to `Uri\Http::new()`
+
+### Why It's Not Merged Yet
+**Missing piece**: The PR needs to update `composer.json` to drop league/uri 6.x support:
+
+**Current (line 39):**
+```json
+"league/uri": "^6.8|^7.1"
+```
+
+**Needs to be:**
+```json
+"league/uri": "^7.1"  
+```
+
+This makes it a **breaking change** because `Uri\Http::new()` only exists in league/uri 7.x.
+
+### Testing the Fix
+
+To test if the fix works, you can check the PR branch directly in the fork:
+
+**Repository with fix**: [foxycode/amphp-websocket-client](https://github.com/foxycode/amphp-websocket-client/tree/2.x)
+
+The fix changes line 240 in `src/WebsocketHandshake.php` from:
+```php
+$uri = Uri\Http::createFromString($uri);
+```
+to:
+```php  
+$uri = Uri\Http::new($uri);
+```
+
+**Note**: The PR is waiting for upstream approval and may require dropping league/uri 6.x support (breaking change).
+
+### Manual Verification
+
+You can verify the fix by:
+1. Checking the [commit in the PR](https://github.com/amphp/websocket-client/pull/56/commits/81d937a36d573d32314071bc95c96b0628a583d8)
+2. Viewing the fixed code in [foxycode's fork](https://github.com/foxycode/amphp-websocket-client/blob/2.x/src/WebsocketHandshake.php#L240)
+
+### Available Workarounds
+
+1. **Wait for the official fix**: Monitor [PR #56](https://github.com/amphp/websocket-client/pull/56) for merge status
+2. **Version pinning**: Pin league/uri to 6.x (not recommended for new projects)  
+3. **Manual patch**: Apply the fix locally by editing `vendor/amphp/websocket-client/src/WebsocketHandshake.php:240`
+
+## Bottom Line
+
+✅ **Pest browser testing works perfectly** - no functional issues  
+❌ **Deprecation warnings clutter test output** due to amphp/websocket-client  
+🔧 **Fix exists but needs composer.json update** to be merged  
+⏳ **Waiting for amphp maintainer decision** on breaking change strategy  
+
+## What You Can Do
+
+1. **For now**: Ignore the deprecation warnings - they don't break functionality
+2. **Help fix it**: Comment on [PR #56](https://github.com/amphp/websocket-client/pull/56) about the missing composer.json change
+3. **Track progress**: Watch the PR for updates on merge status
+
+The fix is literally 2 lines of code, but requires careful coordination due to the breaking change implications.

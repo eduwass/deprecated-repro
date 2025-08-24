@@ -7,5 +7,10 @@
         "allow-plugins": {
             "pestphp/pest-plugin": true
         }
+    },
+    "repositories": {
+    },
+    "require": {
+        "amphp/websocket-client": "^2.0"
     }
 }
