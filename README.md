@@ -1,5 +1,9 @@
 # Pest v4 Browser Testing Deprecation Issue
 
+https://github.com/pestphp/pest/issues/1470
+
+<img width="3228" height="1146" alt="Image" src="https://github.com/user-attachments/assets/8a0d3002-32ed-4274-9d58-b05d4acfd291" />
+
 This repository demonstrates a deprecation warning that occurs when using **Pest v4 browser testing** with the `visit()` function.
 
 ## What I Want to Fix
